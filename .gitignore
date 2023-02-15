@@ -1,4 +1,4 @@
-WinFreeformNotes.sln
+*.sln
 x64/
 .vs/
 *.vcxproj*
