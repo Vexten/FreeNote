@@ -1,0 +1,5 @@
+WinFreeformNotes.sln
+x64/
+.vs/
+*.vcxproj*
+*.dll
