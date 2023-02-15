@@ -1,5 +1,5 @@
-#include "App.h"
-#include "Note.h"
+#include "../headers/App.h"
+#include "../headers/Note.h"
 
 using namespace Freenote;
 

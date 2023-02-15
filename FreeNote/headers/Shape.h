@@ -14,10 +14,11 @@ private:
 	int x, y;
 	int w, h;
 	float angle;
-	int scale;
+	float scale;
 
-	void move_shape(int x, int y);
-	void scale_shape(int scale);
+	void move(int x, int y);
+	void change_scale(float scale);
+	void blow_up();
 
 public:
 	std::string text;

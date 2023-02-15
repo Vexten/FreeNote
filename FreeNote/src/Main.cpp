@@ -1,6 +1,6 @@
 #include <iostream>
-#include "App.h"
-#include "ConsoleLogger.h"
+#include "../headers/App.h"
+#include "../headers/ConsoleLogger.h"
 
 using namespace Freenote;
 

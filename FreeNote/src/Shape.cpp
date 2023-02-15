@@ -1,5 +1,7 @@
-#include "Shape.h"
+#include "../headers/Shape.h"
 #include <cmath>
+
+#define SHAPE_DEFAULT_MAX_SIZE 100
 
 //TODO: Board (separate screenspace from shape location)
 //TODO: Vertex movement on shape scale
@@ -95,14 +97,12 @@ const std::vector<int> calculate_indices(const std::vector<SDL_Vertex>* verts)
 
 /*
 Moves shape to target pos
-x and y are unknown, write whatever the fuck they turn out to be here (should be center?);
+x and y are unknown, write whatever the fuck they turn out to be here (should be center?)
 */
-void Shape::move_shape(int x, int y) {
-	int v_len = this->verts.size();
-	SDL_Vertex* v_data = this->verts.data();
-	for (int i = 0; i < v_len; i++) {
-		v_data[i].position.x += x;
-		v_data[i].position.y += y;
+void Shape::move(int x, int y) {
+	for (SDL_Vertex& vert : this->verts) {
+		vert.position.x += x;
+		vert.position.y += y;
 	}
 	this->x = x;
 	this->y = y;
@@ -111,17 +111,38 @@ void Shape::move_shape(int x, int y) {
 /*
 Currently assumes scaling from [0;0] origin (will that always work?)
 */
-void Shape::scale_shape(int scale) {
+void Shape::change_scale(float scale) {
 	if (scale < 10) return;
-	int v_len = this->verts.size();
-	SDL_Vertex* v_data = this->verts.data();
-	for (int i = 0; i < v_len; i++) {
-		float* v_x = &(v_data[i].position.x);
-		float* v_y = &(v_data[i].position.y);
+	for (SDL_Vertex& vert : this->verts) {
+		float* v_x = &(vert.position.x);
+		float* v_y = &(vert.position.y);
 		*v_x = (*v_x - this->x) * scale / 100.0 + this->x;
 		*v_y = (*v_y - this->y) * scale / 100.0 + this->y;
 	}
 	this->scale = scale;
+}
+
+void Shape::blow_up() {
+	float max_x, max_y, min_x, min_y;
+	max_x = this->verts[0].position.x;
+	max_y = this->verts[0].position.y;
+	min_x = this->verts[0].position.x;
+	min_y = this->verts[0].position.y;
+	float cx = 0;
+	float cy = 0;
+	for (const SDL_Vertex& vert : this->verts) {
+		cx = vert.position.x;
+		cy = vert.position.y;
+		if (cx > max_x) max_x = cx;
+		else if (cx < min_x) min_x = cx;
+		if (cy > max_y) max_y = cy;
+		else if (cy < min_y) min_y = cy;
+	}
+	float x_diff = abs(max_x - min_x);
+	float y_diff = abs(max_y - min_y);
+	float scale = SHAPE_DEFAULT_MAX_SIZE / ((x_diff > y_diff) ? x_diff : y_diff);
+	this->change_scale(scale * 100);
+	this->scale = 100;
 }
 
 Shape::Shape(SDL_Texture* tex, const std::vector<SDL_Vertex>* verts, const std::vector<int> indices, int x, int y, float scale) {
@@ -130,8 +151,8 @@ Shape::Shape(SDL_Texture* tex, const std::vector<SDL_Vertex>* verts, const std::
 	//TODO: w h calculation
 	this->w = 0; this->h = 0;
 	this->verts = std::vector(*verts);
-	this->move_shape(x,y);
-	this->scale_shape(scale);
+	this->move(x,y);
+	this->blow_up();
 	angle = 0.0;
 }
 

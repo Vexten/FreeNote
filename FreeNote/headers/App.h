@@ -2,7 +2,7 @@
 #include "SDL.h"
 #undef main
 
-#include "ILogger.h"
+#include "./ILogger.h"
 
 namespace Freenote {
 
