@@ -2,31 +2,12 @@
 #include "SDL.h"
 #undef main
 
-#include "./ILogger.h"
+#include "ILogger.h"
+#include "Errors.h"
+#include "RecourceStorage.h"
+#include "Shape.h"
 
 namespace Freenote {
-
-#define FN_ERRORS \
-X(APP_SDL_VIDEO_INIT_ERR, "APP_SDL_VIDEO_INIT_ERR") \
-X(APP_SDL_WINDOW_CREATE_ERR, "APP_SDL_WINDOW_CREATE_ERR") \
-X(APP_GL_CONTEXT_CREATE_ERR, "APP_GL_CONTEXT_CREATE_ERR") \
-X(APP_SDL_RENDERER_CREATE_ERR, "APP_SDL_RENDERER_CREATE_ERR") \
-X(APP_SDL_ERRORS, "This is used to check for SDL errors, you shouldn't see this text.")
-
-
-#define X(name, str) name,
-	enum APP_ERR : size_t {
-		FN_ERRORS
-	};
-#undef X
-
-#define X(name, str) str,
-	constexpr const char* APP_ERR_STR[] = {
-		FN_ERRORS
-	};
-#undef X
-
-#undef FN_ERRORS
 
 	class App
 	{
@@ -39,6 +20,7 @@ X(APP_SDL_ERRORS, "This is used to check for SDL errors, you shouldn't see this 
 		Uint32 frame_time;
 		SDL_Window* window;
 		SDL_Renderer* renderer;
+		ResourceStorage* r_storage;
 		bool quit;
 		ILogger* logger;
 		bool logging;

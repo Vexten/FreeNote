@@ -4,102 +4,77 @@
 #define SHAPE_DEFAULT_MAX_SIZE 100
 
 //TODO: Board (separate screenspace from shape location)
-//TODO: Vertex movement on shape scale
 //TODO: Vertex movement on shape rotation
 
-constexpr float sign(const SDL_Vertex* p, const SDL_Vertex* a, const SDL_Vertex* b)
-{
-	return (p->position.x - b->position.x) * (a->position.y - b->position.y) - (a->position.x - b->position.x) * (p->position.y - b->position.y);
-}
+#define VERT_SIGN "v"
+#define UV_COORD_SIGN "vt"
 
-//is v inside of abc
-constexpr bool is_inside_triangle(const SDL_Vertex* v, const SDL_Vertex* a, const SDL_Vertex* b, const SDL_Vertex* c) {
-	float d1, d2, d3;
-	bool has_neg, has_pos;
-
-	d1 = sign(v, a, b);
-	d2 = sign(v, b, c);
-	d3 = sign(v, c, a);
-
-	has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-	has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-	return !(has_neg && has_pos);
-}
-
-constexpr int is_clockwise(const SDL_Vertex* a, const SDL_Vertex* b, const SDL_Vertex* c) {
-	float p1 = (b->position.x - a->position.x) * (c->position.y - a->position.y);
-	float p2 = (c->position.x - a->position.x) * (b->position.y - a->position.y);
-	float val = p1 - p2;
-	return (0.0f < val) - (val < 0.0f);
-}
-
-const std::vector<int> calculate_indices(const std::vector<SDL_Vertex>* verts)
-{
-	int v_len = verts->size();
-	const SDL_Vertex* v_data = verts->data();
-	std::vector<int> t_v(v_len);
-	for (int i = 0; i < v_len; i++) {
-		t_v[i] = i;
+//TODO: doesn't react to a non-existant file (what?). Make it do so
+const std::vector<SDL_Vertex> Freenote::LoadShape::load_vertex_data_from_obj(std::ifstream& file, SDL_Color color) {
+	if (!file.good()) throw; //error reading file
+	std::vector<SDL_Vertex> ret;
+	std::string s;
+	float x, y;
+	file.seekg(0, file.beg);
+	do file >> s; while (s != VERT_SIGN && !file.eof());
+	if (file.eof()) throw; //no vertex data
+	while (s == VERT_SIGN) {
+		file >> x >> y;
+		ret.push_back(SDL_Vertex{ SDL_FPoint{ x, y }, color });
+		file >> x;
+		file >> s;
 	}
-	std::vector<int> ind;
-	int max_ind = 0;
-	int max_x = v_data[0].position.x;
-	for (int i = 0; i < v_len; i++) {
-		if (v_data[i].position.x > max_x) {
-			max_x = v_data[i].position.x;
-			max_ind = i;
+	file.seekg(0, file.beg);
+	do file >> s; while (s != UV_COORD_SIGN && !file.eof());
+	if (file.eof()) {
+		for (SDL_Vertex& vert : ret) {
+			vert.tex_coord = SDL_FPoint{ -1,-1 };
 		}
 	}
-	const SDL_Vertex* b = &v_data[max_ind];
-	int ai = max_ind - 1;
-	if (ai < 0) ai = v_len;
-	int ci = max_ind + 1;
-	if (ci > (v_len - 1)) ci = 0;
-	const SDL_Vertex* a = &v_data[ai];
-	const SDL_Vertex* c = &v_data[ci];
-	int poly_cw = is_clockwise(a, b, c);
-	int i = 0;
-	while (t_v.size() > 3) {
-		bool contains_vertex = false;
-		int ind1 = t_v[i % t_v.size()];
-		int ind2 = t_v[(i + 1) % t_v.size()];
-		int ind3 = t_v[(i + 2) % t_v.size()];
-		const SDL_Vertex* p1 = &v_data[ind1];
-		const SDL_Vertex* p2 = &v_data[ind2];
-		const SDL_Vertex* p3 = &v_data[ind3];
-		if (poly_cw == is_clockwise(p1, p2, p3)) {
-			for (int j = 0; j < v_len; j++) {
-				if ((j == ind1) || (j == ind2) || (j == ind3)) continue;
-				if (is_inside_triangle(&v_data[j], p1, p2, p3)) {
-					contains_vertex = true;
-					break;
-				}
-			}
-			if (contains_vertex) {
-				i++;
-				continue;
-			}
-			ind.push_back(ind1);
-			ind.push_back(ind2);
-			ind.push_back(ind3);
-			t_v.erase(t_v.begin() + ((i + 1) % t_v.size()));
-		}
-		else {
-			i++;
+	else {
+		//TODO: throw on malformed uv data
+		for (SDL_Vertex& vert : ret) {
+			file >> x >> y;
+			vert.tex_coord = SDL_FPoint{ x, y };
+			file >> s;
 		}
 	}
-	for (int i : t_v) {
-		ind.push_back(i);
-	}
-	return ind;
+	return ret;
 }
+
+#undef VERT_SIGN
+#undef UV_COORD_SIGN
+
+#define FACE_SIGN "f"
+
+const std::vector<int> Freenote::LoadShape::load_ind_data_from_obj(std::ifstream& file) {
+	if (!file.good()) throw; //error reading file
+	std::vector<int> ret;
+	std::string s;
+	int x, y;
+	file.seekg(0, file.beg);
+	do file >> s; while (s != FACE_SIGN && !file.eof());
+	if (file.eof()) throw; //no face data
+	while (s == FACE_SIGN) {
+		for (int i = 0; i < 3; i++) {
+			file >> s;
+			int vert_end = s.find_first_of('/');
+			//magical -1 because in obj file vertices are 1-indexed
+			x = std::stoi(s.substr(0, vert_end)) - 1;
+			ret.push_back(x);
+		}
+		file >> s;
+	}
+	return ret;
+}
+
+#undef FACE_SIGN
 
 /*
 Moves shape to target pos
 x and y are unknown, write whatever the fuck they turn out to be here (should be center?)
 */
-void Shape::move(int x, int y) {
+void Freenote::Shape::move(int x, int y) {
 	for (SDL_Vertex& vert : this->verts) {
 		vert.position.x += x;
 		vert.position.y += y;
@@ -111,7 +86,7 @@ void Shape::move(int x, int y) {
 /*
 Currently assumes scaling from [0;0] origin (will that always work?)
 */
-void Shape::change_scale(float scale) {
+void Freenote::Shape::change_scale(float scale) {
 	if (scale < 10) return;
 	for (SDL_Vertex& vert : this->verts) {
 		float* v_x = &(vert.position.x);
@@ -122,7 +97,7 @@ void Shape::change_scale(float scale) {
 	this->scale = scale;
 }
 
-void Shape::blow_up() {
+void Freenote::Shape::blow_up() {
 	float max_x, max_y, min_x, min_y;
 	max_x = this->verts[0].position.x;
 	max_y = this->verts[0].position.y;
@@ -145,17 +120,18 @@ void Shape::blow_up() {
 	this->scale = 100;
 }
 
-Shape::Shape(SDL_Texture* tex, const std::vector<SDL_Vertex>* verts, const std::vector<int> indices, int x, int y, float scale) {
+Freenote::Shape::Shape(SDL_Texture* tex, std::vector<SDL_Vertex>* verts, std::vector<int>* indices, int x, int y, float scale) {
 	this->tex = tex;
 	this->ind = indices;
 	//TODO: w h calculation
 	this->w = 0; this->h = 0;
-	this->verts = std::vector(*verts);
+	this->verts = std::vector<SDL_Vertex>(*verts);
 	this->move(x,y);
 	this->blow_up();
+	this->change_scale(scale);
 	angle = 0.0;
 }
 
-void Shape::draw(SDL_Renderer* renderer) {
-	SDL_RenderGeometry(renderer, tex, verts.data(), verts.size(), ind.data(), ind.size());
+void Freenote::Shape::draw(SDL_Renderer* renderer) {
+	SDL_RenderGeometry(renderer, tex, verts.data(), verts.size(), (*ind).data(), (*ind).size());
 }

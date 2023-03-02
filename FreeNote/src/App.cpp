@@ -1,5 +1,4 @@
 #include "../headers/App.h"
-#include "../headers/Note.h"
 
 using namespace Freenote;
 
@@ -33,6 +32,13 @@ App::App(Uint32 width, Uint32 height, Uint32 FPS, ILogger* logger) {
 	if (renderer == NULL) {
 		CTOR_ERR(APP_SDL_RENDERER_CREATE_ERR);
 	}
+	char* path = SDL_GetBasePath();
+	if (path == NULL) {
+		CTOR_ERR(APP_SDL_BASE_FOLDER_NOT_RETURNED);
+	}
+	//may break because of UTF-8, lets hope it doesn't
+	r_storage = new ResourceStorage(std::string(path));
+	SDL_free(path);
 	frame_time = 1000 / FPS;
 	quit = false;
 	this->logger = logger;
@@ -46,6 +52,7 @@ App::~App() {
 	}
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
+	delete r_storage;
 	SDL_Quit();
 }
 
@@ -77,7 +84,12 @@ void App::handle_event(SDL_Event* e) {
 			break;
 		case SDL_BUTTON_RIGHT:
 			FN_LOG(std::format("M2_DOWN event (x: {}; y: {}), creating dummy Note", e->button.x, e->button.y));
-			shapes.push_back(new Note(e->button.x, e->button.y));
+			shapes.push_back(new Shape(
+				(*r_storage)["shapes"]["arrow"].shape_verts,
+				(*r_storage)["shapes"]["arrow"].shape_indices,
+				e->button.x,
+				e->button.y,
+				100.0f));
 			break;
 		}
 		break;
